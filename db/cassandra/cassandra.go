@@ -13,10 +13,17 @@ func InitCluster(connection string) (*gocql.ClusterConfig, error) {
 
 	connectionURL, err := url.Parse(connection)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Incorrect Database connection string format should be cassandra://[user:password@]ip1[:port]/keyspace[?dc=dc_name] but have %v", connection)
+		return nil, errors.Wrapf(err, "Incorrect Database connection string format should be cassandra://[user:password@]ip1[:port],[ip2[:port]]/keyspace[?dc=dc_name] but have %v", connection)
 	}
 
-	cluster := gocql.NewCluster(connectionURL.Host)
+	//validate hosts
+	hosts := strings.Split(connectionURL.Host, ",")
+	fmt.Printf("Cassandra connection hosts:%+v\n", hosts)
+	if len(hosts) == 0 {
+		return nil, errors.New(fmt.Sprintf("Connection string must content a host"))
+	}
+
+	cluster := gocql.NewCluster(hosts...)
 	cluster.Keyspace = strings.TrimLeft(connectionURL.Path, "/")
 	if len(cluster.Keyspace) == 0 {
 		return nil, errors.New(fmt.Sprintf("Connection string must content a keyspace"))
@@ -41,7 +48,7 @@ func InitCluster(connection string) (*gocql.ClusterConfig, error) {
 		//cluster.CQLVersion = "3.0.0"
 		cluster.HostFilter = gocql.DataCentreHostFilter(connectionURL.Query().Get("dc"))
 		cluster.Consistency = gocql.LocalQuorum
-		fmt.Println("Hostfilter connection.Dc:", connectionURL.Query().Get("dc"))
+		fmt.Println("Cassandra connection.Dc:", connectionURL.Query().Get("dc"))
 	}
 
 	//if connectionURL.Query().Get("init_host_lookup") != "" {
@@ -58,4 +65,3 @@ func InitCluster(connection string) (*gocql.ClusterConfig, error) {
 //	log.Fatalf("Cluster CreateSession Err: %+v", err)
 //}
 //fmt.Println("cassandra init done")
-//return Session, nil
